@@ -1,101 +1,203 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Mic, Send, StopCircle } from 'lucide-react';
+
+// AIモデルを種類ごとに分類
+const AI_MODELS = {
+  thinking: [
+    { id: 'gpt-4', name: 'GPT-4' },
+    { id: 'claude-3', name: 'Claude 3' },
+    { id: 'gemini', name: 'Gemini' },
+  ],
+  textToSpeech: [
+    { id: 'elevenlabs', name: 'ElevenLabs' },
+    { id: 'azure-tts', name: 'Azure TTS' },
+  ],
+  speechToText: [
+    { id: 'whisper', name: 'Whisper' },
+    { id: 'azure-stt', name: 'Azure Speech to Text' },
+  ],
+};
+
+const ChatInterface = () => {
+  const [messages, setMessages] = useState([]);
+  const [inputText, setInputText] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [selectedModels, setSelectedModels] = useState({
+    thinking: AI_MODELS.thinking[0].id,
+    textToSpeech: AI_MODELS.textToSpeech[0].id,
+    speechToText: AI_MODELS.speechToText[0].id,
+  });
+
+  const generateMockResponse = (text) => {
+    const selectedAI = AI_MODELS.thinking.find(
+      (model) => model.id === selectedModels.thinking
+    );
+    return `${selectedAI.name}からの応答: ${text}への返答です。`;
+  };
+
+  const handleSend = () => {
+    if (!inputText.trim()) return;
+
+    const newMessage = {
+      id: Date.now(),
+      text: inputText,
+      sender: 'user',
+    };
+
+    const aiResponse = {
+      id: Date.now() + 1,
+      text: generateMockResponse(inputText),
+      sender: 'ai',
+    };
+
+    setMessages([...messages, newMessage, aiResponse]);
+    setInputText('');
+  };
+
+  const handleVoiceRecording = () => {
+    setIsRecording(!isRecording);
+    if (!isRecording) {
+      // モック: 録音開始
+      console.log('録音開始 -', selectedModels.speechToText);
+    } else {
+      // モック: 録音終了と音声認識
+      console.log('録音終了 -', selectedModels.speechToText);
+      const mockTranscription = '音声認識されたテキストです。';
+      setInputText(mockTranscription);
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="flex flex-col h-screen max-w-4xl mx-auto">
+      {/* AIモデル選択部分 */}
+      <div className="p-4 border-b">
+        <div className="flex flex-wrap gap-4">
+          <div>
+            <label className="text-sm font-medium mb-1 block">思考AI</label>
+            <Select
+              value={selectedModels.thinking}
+              onValueChange={(value) =>
+                setSelectedModels((prev) => ({ ...prev, thinking: value }))
+              }
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="思考AIを選択" />
+              </SelectTrigger>
+              <SelectContent>
+                {AI_MODELS.thinking.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">音声化AI</label>
+            <Select
+              value={selectedModels.textToSpeech}
+              onValueChange={(value) =>
+                setSelectedModels((prev) => ({ ...prev, textToSpeech: value }))
+              }
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="音声化AIを選択" />
+              </SelectTrigger>
+              <SelectContent>
+                {AI_MODELS.textToSpeech.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">
+              テキスト化AI
+            </label>
+            <Select
+              value={selectedModels.speechToText}
+              onValueChange={(value) =>
+                setSelectedModels((prev) => ({ ...prev, speechToText: value }))
+              }
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="テキスト化AIを選択" />
+              </SelectTrigger>
+              <SelectContent>
+                {AI_MODELS.speechToText.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+      </div>
+
+      {/* メッセージ表示エリア */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex ${
+              message.sender === 'user' ? 'justify-end' : 'justify-start'
+            } mb-4`}
+          >
+            <div
+              className={`rounded-lg p-3 max-w-[80%] ${
+                message.sender === 'user'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100'
+              }`}
+            >
+              {message.text}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 入力エリア - 固定フッター */}
+      <div className="border-t p-4 bg-white">
+        <div className="flex gap-2">
+          <Button
+            variant={isRecording ? 'destructive' : 'secondary'}
+            size="icon"
+            onClick={handleVoiceRecording}
+          >
+            {isRecording ? (
+              <StopCircle className="h-4 w-4" />
+            ) : (
+              <Mic className="h-4 w-4" />
+            )}
+          </Button>
+          <Input
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder="メッセージを入力..."
+            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+            className="flex-1"
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <Button onClick={handleSend}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default ChatInterface;
