@@ -24,18 +24,18 @@ export async function POST(request) {
     const buffer = Buffer.from(arrayBuffer);
 
     // ▼▼▼ デバッグ用：オリジナルファイルを保存（必要に応じて） ▼▼▼
-    try {
-      const debugOriginalPath = path.join(
-        process.cwd(),
-        'public',
-        'debug',
-        `original_${Date.now()}.webm`
-      );
-      await fs.writeFile(debugOriginalPath, buffer);
-      console.log('Original file saved at:', debugOriginalPath);
-    } catch (err) {
-      console.error('Error saving original file:', err);
-    }
+    // try {
+    //   const debugOriginalPath = path.join(
+    //     process.cwd(),
+    //     'public',
+    //     'debug',
+    //     `original_${Date.now()}.webm`
+    //   );
+    //   await fs.writeFile(debugOriginalPath, buffer);
+    //   console.log('Original file saved at:', debugOriginalPath);
+    // } catch (err) {
+    //   console.error('Error saving original file:', err);
+    // }
     // ▲▲▲
 
     // Python API へ転送するための FormData を作成
@@ -71,18 +71,18 @@ export async function POST(request) {
     const processedData = Buffer.from(processedBuffer);
 
     // ▼▼▼ デバッグ用：処理済みファイルを保存（必要に応じて） ▼▼▼
-    try {
-      const debugProcessedPath = path.join(
-        process.cwd(),
-        'public',
-        'debug',
-        `processed_${Date.now()}.webm`
-      );
-      await fs.writeFile(debugProcessedPath, processedData);
-      console.log('Processed file saved at:', debugProcessedPath);
-    } catch (err) {
-      console.error('Error saving processed file:', err);
-    }
+    // try {
+    //   const debugProcessedPath = path.join(
+    //     process.cwd(),
+    //     'public',
+    //     'debug',
+    //     `processed_${Date.now()}.webm`
+    //   );
+    //   await fs.writeFile(debugProcessedPath, processedData);
+    //   console.log('Processed file saved at:', debugProcessedPath);
+    // } catch (err) {
+    //   console.error('Error saving processed file:', err);
+    // }
     // ▲▲▲
 
     // 保存先ディレクトリ（例：public/uploads）が存在することを確認してください
