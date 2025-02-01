@@ -4,6 +4,7 @@ import FormData from 'form-data';
 import fs from 'fs/promises';
 import path from 'path';
 import { transcribeAudio } from '@/app/infrastructure/speech-to-text/open-ai/transcribe';
+import { getChatResponse } from '@/app/infrastructure/chat/open-ai/chat';
 
 // (Edge runtimeを使用している場合は)
 // export const config = { runtime: 'nodejs' };
@@ -95,6 +96,19 @@ export async function POST(request) {
     const fileBuffer = Buffer.from(processedBuffer);
     const model = 'whisper-1';
     const text = await transcribeAudio(fileBuffer, model);
+
+    // いったんgpt4o-miniを利用して、chatする
+    const messages = [
+      {
+        role: 'system',
+        content:
+          'あなた英語教師です。ユーザーの発言を英語で返答してください。ユーザーのレベルは差が大きいため、ユーザーのレベルに合わせて返答してください。',
+      },
+      { role: 'user', content: text },
+    ];
+    const chat_model = 'gpt-4o-mini';
+    const chatResponse = await getChatResponse(messages, chat_model);
+    console.log('chatResponse', chatResponse);
 
     // クライアントにテキストを返す
     return new NextResponse(JSON.stringify({ text }), {
