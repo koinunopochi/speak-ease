@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState,useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/select';
 import { Mic, Send, StopCircle } from 'lucide-react';
 
-// AIモデルを種類ごとに分類
 const AI_MODELS = {
   thinking: [
     { id: 'gpt-4', name: 'GPT-4' },
@@ -38,6 +37,72 @@ const ChatInterface = () => {
     textToSpeech: AI_MODELS.textToSpeech[0].id,
     speechToText: AI_MODELS.speechToText[0].id,
   });
+
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      chunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/mp3' });
+
+        // FormDataを作成してファイルを追加
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.mp3');
+
+        try {
+          const response = await fetch('/api/upload-audio', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            console.log('Audio uploaded successfully:', result.filename);
+          } else {
+            console.error('Failed to upload audio:', result.error);
+          }
+        } catch (error) {
+          console.error('Error uploading audio:', error);
+        }
+
+        // ストリームのトラックを停止
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      alert('マイクへのアクセスが拒否されたか、エラーが発生しました。');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleVoiceRecording = () => {
+    if (!isRecording) {
+      startRecording();
+    } else {
+      stopRecording();
+    }
+  };
 
   const generateMockResponse = (text) => {
     const selectedAI = AI_MODELS.thinking.find(
@@ -65,22 +130,8 @@ const ChatInterface = () => {
     setInputText('');
   };
 
-  const handleVoiceRecording = () => {
-    setIsRecording(!isRecording);
-    if (!isRecording) {
-      // モック: 録音開始
-      console.log('録音開始 -', selectedModels.speechToText);
-    } else {
-      // モック: 録音終了と音声認識
-      console.log('録音終了 -', selectedModels.speechToText);
-      const mockTranscription = '音声認識されたテキストです。';
-      setInputText(mockTranscription);
-    }
-  };
-
   return (
     <div className="flex flex-col h-screen max-w-4xl mx-auto">
-      {/* AIモデル選択部分 */}
       <div className="p-4 border-b">
         <div className="flex flex-wrap gap-4">
           <div>
@@ -148,7 +199,6 @@ const ChatInterface = () => {
         </div>
       </div>
 
-      {/* メッセージ表示エリア */}
       <div className="flex-1 overflow-y-auto p-4">
         {messages.map((message) => (
           <div
@@ -170,7 +220,6 @@ const ChatInterface = () => {
         ))}
       </div>
 
-      {/* 入力エリア - 固定フッター */}
       <div className="border-t p-4 bg-white">
         <div className="flex gap-2">
           <Button
