@@ -1,7 +1,9 @@
 import OpenAI from 'openai';
 
 // OpenAI クライアントを初期化
-const openai = new OpenAI();
+const openai = new OpenAI({
+  apiKey: process.env.MY_OPENAI_API_KEY, // .env から APIキーを取得
+});
 
 /**
  * テキストを音声に変換し、バイナリデータ（Buffer）として返す関数
