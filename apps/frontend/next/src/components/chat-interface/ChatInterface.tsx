@@ -64,7 +64,7 @@ const ChatInterface: React.FC = () => {
       const audioBlob = await getAudioBlob();
       const userPlaceholderId = Date.now();
 
-      // ユーザーのメッセージを追加
+      // ユーザーのメッセージを追加（初めは認識中のプレースホルダー）
       setMessages((prev) => [
         ...prev,
         {
@@ -105,7 +105,7 @@ const ChatInterface: React.FC = () => {
         throw new Error(sttResult.error || '音声認識に失敗しました');
       }
 
-      // ユーザーメッセージの更新
+      // ユーザーメッセージの更新（プレースホルダーを認識結果に置換）
       setMessages((prev) =>
         prev.map((m) =>
           m.id === userPlaceholderId
@@ -127,11 +127,30 @@ const ChatInterface: React.FC = () => {
         },
       ]);
 
+      // --- ここで会話履歴（直近6個分 + 最新のUser質問）を作成する ---
+      // ここでは、loadingがfalseのUser/AIのメッセージのみを対象とします。
+      const conversationMessages = messages
+        .filter((m) => !m.loading && (m.sender === 'user' || m.sender === 'ai'))
+        .slice(-6) // 直近6件
+        .map((m) => ({
+          role: m.sender === 'user' ? 'user' : 'assistant',
+          content: m.text,
+        }));
+
+      // ※ もし最新のUser質問がまだ conversationMessages に含まれていなければ、追加する
+      // ここでは、上記の setMessages 更新後に state が即時反映されない可能性があるため、
+      // 最新のUser質問は sttResult.transcript として明示的に追加する例です。
+      const updatedConversation = [
+        ...conversationMessages,
+        { role: 'user', content: sttResult.transcript },
+      ];
+
+      // chat-ai API 呼び出し（会話履歴を含む）
       const chatResponse = await fetch('/api/chat-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: sttResult.transcript,
+          messages: updatedConversation,
           model: selectedModels.thinking,
         }),
       });
@@ -140,7 +159,7 @@ const ChatInterface: React.FC = () => {
         throw new Error(chatResult.error || 'AI処理に失敗しました');
       }
 
-      // AI メッセージ更新
+      // AI メッセージ更新（プレースホルダーを実際の応答に置換）
       setMessages((prev) =>
         prev.map((m) =>
           m.id === aiPlaceholderId
