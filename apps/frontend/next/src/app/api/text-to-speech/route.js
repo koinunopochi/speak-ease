@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import { textToSpeech } from '@/app/infrastructure/text-to-speech/textToSpeech';
+import { textToSpeech } from '@/app/infrastructure/text-to-speech/open-ai/textToSpeech';
 
 export async function POST(request) {
   try {
