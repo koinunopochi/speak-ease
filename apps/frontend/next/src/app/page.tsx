@@ -15,16 +15,12 @@ import { Mic, Send, StopCircle } from 'lucide-react';
 const AI_MODELS = {
   thinking: [
     { id: 'gpt-4o-mini', name: 'GPT-4o-mini' },
-    { id: 'claude-3', name: 'Claude 3' },
-    { id: 'gemini', name: 'Gemini' },
-  ],
-  textToSpeech: [
-    { id: 'tts-1', name: 'OpenAI-Text-to-Speech' },
-    { id: 'azure-tts', name: 'Azure TTS' },
   ],
   speechToText: [
     { id: 'whisper-1', name: 'Whisper' },
-    { id: 'azure-stt', name: 'Azure Speech to Text' },
+  ],
+  textToSpeech: [
+    { id: 'tts-1', name: 'OpenAI-Text-to-Speech' },
   ],
 };
 
@@ -251,26 +247,6 @@ const ChatInterface = () => {
             </Select>
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">音声化AI</label>
-            <Select
-              value={selectedModels.textToSpeech}
-              onValueChange={(value) =>
-                setSelectedModels((prev) => ({ ...prev, textToSpeech: value }))
-              }
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="音声化AIを選択" />
-              </SelectTrigger>
-              <SelectContent>
-                {AI_MODELS.textToSpeech.map((model) => (
-                  <SelectItem key={model.id} value={model.id}>
-                    {model.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
             <label className="text-sm font-medium mb-1 block">
               テキスト化AI
             </label>
@@ -285,6 +261,26 @@ const ChatInterface = () => {
               </SelectTrigger>
               <SelectContent>
                 {AI_MODELS.speechToText.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">音声化AI</label>
+            <Select
+              value={selectedModels.textToSpeech}
+              onValueChange={(value) =>
+                setSelectedModels((prev) => ({ ...prev, textToSpeech: value }))
+              }
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="音声化AIを選択" />
+              </SelectTrigger>
+              <SelectContent>
+                {AI_MODELS.textToSpeech.map((model) => (
                   <SelectItem key={model.id} value={model.id}>
                     {model.name}
                   </SelectItem>
