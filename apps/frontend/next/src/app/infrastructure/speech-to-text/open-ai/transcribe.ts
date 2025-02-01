@@ -34,6 +34,7 @@ export async function transcribeAudio(
     const transcription = await openai.audio.transcriptions.create({
       file: fs.createReadStream(tempFilePath),
       model,
+      language: 'en',
     });
 
     return transcription.text;
