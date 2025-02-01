@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState,useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,17 +14,13 @@ import { Mic, Send, StopCircle } from 'lucide-react';
 
 const AI_MODELS = {
   thinking: [
-    { id: 'gpt-4', name: 'GPT-4' },
-    { id: 'claude-3', name: 'Claude 3' },
-    { id: 'gemini', name: 'Gemini' },
-  ],
-  textToSpeech: [
-    { id: 'elevenlabs', name: 'ElevenLabs' },
-    { id: 'azure-tts', name: 'Azure TTS' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o-mini' },
   ],
   speechToText: [
-    { id: 'whisper', name: 'Whisper' },
-    { id: 'azure-stt', name: 'Azure Speech to Text' },
+    { id: 'whisper-1', name: 'Whisper' },
+  ],
+  textToSpeech: [
+    { id: 'tts-1', name: 'OpenAI-Text-to-Speech' },
   ],
 };
 
@@ -47,45 +43,113 @@ const ChatInterface = () => {
       mediaRecorderRef.current = new MediaRecorder(stream);
       chunksRef.current = [];
 
+      // 録音データがあるたびにチャンクを保持
       mediaRecorderRef.current.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
       };
 
-      // onstop イベント内
+      // 録音停止時に、各APIに順次問い合わせる
       mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
 
-        // FormDataを作成してファイルを追加（キー名を "file" に変更）
+        // ■ 1. ファイルアップロード
         const formData = new FormData();
         formData.append('audio', audioBlob, 'recording.webm');
 
         try {
-          const response = await fetch('/api/upload-audio', {
+          const uploadResponse = await fetch('/api/upload-audio', {
             method: 'POST',
             body: formData,
           });
-
-          const result = await response.json();
-
-          if (result.success) {
-            console.log('Audio uploaded successfully:', result.filename);
-          } else {
-            console.error('Failed to upload audio:', result.error);
+          const uploadResult = await uploadResponse.json();
+          if (!uploadResult.success) {
+            throw new Error(
+              uploadResult.error || 'ファイルアップロードに失敗しました。'
+            );
           }
+          const filename = uploadResult.filename;
+
+          // ■ 2. テキスト化の API に問い合わせ（speech-to-text）
+          const sttResponse = await fetch('/api/speech-to-text', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename,
+              model: selectedModels.speechToText,
+            }),
+          });
+          const sttResult = await sttResponse.json();
+          if (!sttResult.success) {
+            throw new Error(
+              sttResult.error || '音声の文字起こしに失敗しました。'
+            );
+          }
+          const transcript = sttResult.transcript;
+          // ユーザーのメッセージとして表示（自動文字起こし）
+          setMessages((prev) => [
+            ...prev,
+            { id: Date.now(), text: transcript, sender: 'user' },
+          ]);
+
+          // ■ 3. Chat AI に問い合わせ
+          const chatResponse = await fetch('/api/chat-ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: transcript,
+              model: selectedModels.thinking,
+            }),
+          });
+          const chatResult = await chatResponse.json();
+          if (!chatResult.success) {
+            throw new Error(
+              chatResult.error || 'チャットAIの問い合わせに失敗しました。'
+            );
+          }
+          const aiText = chatResult.response;
+
+          // ■ 4. 音声化（テキスト⇒音声）
+          const ttsResponse = await fetch('/api/text-to-speech', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: aiText,
+              model: selectedModels.textToSpeech,
+            }),
+          });
+          const ttsResult = await ttsResponse.json();
+          if (!ttsResult.success) {
+            throw new Error(
+              ttsResult.error || 'テキストの音声化に失敗しました。'
+            );
+          }
+          const audioUrl = ttsResult.audioUrl;
+
+          // AIからの応答メッセージを追加
+          setMessages((prev) => [
+            ...prev,
+            { id: Date.now() + 1, text: aiText, sender: 'ai' },
+          ]);
+
+          // 生成された音声を再生（必要に応じて）
+          const audioPlayer = new Audio(audioUrl);
+          audioPlayer.play();
         } catch (error) {
-          console.error('Error uploading audio:', error);
+          console.error('音声処理エラー:', error);
+          alert('音声処理中にエラーが発生しました: ' + error.message);
         }
 
-        // ストリームのトラックを停止
+        // ストリームのトラックを停止し、録音状態をリセット
         stream.getTracks().forEach((track) => track.stop());
+        setIsRecording(false);
       };
 
       mediaRecorderRef.current.start();
       setIsRecording(true);
     } catch (error) {
-      console.error('Failed to start recording:', error);
+      console.error('録音開始エラー:', error);
       alert('マイクへのアクセスが拒否されたか、エラーが発生しました。');
     }
   };
@@ -93,8 +157,60 @@ const ChatInterface = () => {
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
     }
+  };
+
+  // 手動入力の場合も、チャット AI と音声化を実行する例
+  const handleSend = async () => {
+    if (!inputText.trim()) return;
+
+    const newMessage = { id: Date.now(), text: inputText, sender: 'user' };
+    setMessages((prev) => [...prev, newMessage]);
+
+    try {
+      const chatResponse = await fetch('/api/chat-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: inputText,
+          model: selectedModels.thinking,
+        }),
+      });
+      const chatResult = await chatResponse.json();
+      if (!chatResult.success) {
+        throw new Error(
+          chatResult.error || 'チャットAIの問い合わせに失敗しました。'
+        );
+      }
+      const aiText = chatResult.response;
+
+      const ttsResponse = await fetch('/api/text-to-speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: aiText,
+          model: selectedModels.textToSpeech,
+        }),
+      });
+      const ttsResult = await ttsResponse.json();
+      if (!ttsResult.success) {
+        throw new Error(ttsResult.error || 'テキストの音声化に失敗しました。');
+      }
+      const audioUrl = ttsResult.audioUrl;
+
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now() + 1, text: aiText, sender: 'ai' },
+      ]);
+
+      const audioPlayer = new Audio(audioUrl);
+      audioPlayer.play();
+    } catch (error) {
+      console.error('テキストメッセージ処理エラー:', error);
+      alert('メッセージ処理中にエラーが発生しました: ' + error.message);
+    }
+
+    setInputText('');
   };
 
   const handleVoiceRecording = () => {
@@ -105,34 +221,9 @@ const ChatInterface = () => {
     }
   };
 
-  const generateMockResponse = (text) => {
-    const selectedAI = AI_MODELS.thinking.find(
-      (model) => model.id === selectedModels.thinking
-    );
-    return `${selectedAI.name}からの応答: ${text}への返答です。`;
-  };
-
-  const handleSend = () => {
-    if (!inputText.trim()) return;
-
-    const newMessage = {
-      id: Date.now(),
-      text: inputText,
-      sender: 'user',
-    };
-
-    const aiResponse = {
-      id: Date.now() + 1,
-      text: generateMockResponse(inputText),
-      sender: 'ai',
-    };
-
-    setMessages([...messages, newMessage, aiResponse]);
-    setInputText('');
-  };
-
   return (
     <div className="flex flex-col h-screen max-w-4xl mx-auto">
+      {/* AIモデル選択部分 */}
       <div className="p-4 border-b">
         <div className="flex flex-wrap gap-4">
           <div>
@@ -148,26 +239,6 @@ const ChatInterface = () => {
               </SelectTrigger>
               <SelectContent>
                 {AI_MODELS.thinking.map((model) => (
-                  <SelectItem key={model.id} value={model.id}>
-                    {model.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1 block">音声化AI</label>
-            <Select
-              value={selectedModels.textToSpeech}
-              onValueChange={(value) =>
-                setSelectedModels((prev) => ({ ...prev, textToSpeech: value }))
-              }
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="音声化AIを選択" />
-              </SelectTrigger>
-              <SelectContent>
-                {AI_MODELS.textToSpeech.map((model) => (
                   <SelectItem key={model.id} value={model.id}>
                     {model.name}
                   </SelectItem>
@@ -197,9 +268,30 @@ const ChatInterface = () => {
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">音声化AI</label>
+            <Select
+              value={selectedModels.textToSpeech}
+              onValueChange={(value) =>
+                setSelectedModels((prev) => ({ ...prev, textToSpeech: value }))
+              }
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="音声化AIを選択" />
+              </SelectTrigger>
+              <SelectContent>
+                {AI_MODELS.textToSpeech.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
+      {/* チャットメッセージ表示部分 */}
       <div className="flex-1 overflow-y-auto p-4">
         {messages.map((message) => (
           <div
@@ -221,6 +313,7 @@ const ChatInterface = () => {
         ))}
       </div>
 
+      {/* 入力とボタン */}
       <div className="border-t p-4 bg-white">
         <div className="flex gap-2">
           <Button
