@@ -53,12 +53,13 @@ const ChatInterface = () => {
         }
       };
 
+      // onstop イベント内
       mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/mp3' });
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
 
-        // FormDataを作成してファイルを追加
+        // FormDataを作成してファイルを追加（キー名を "file" に変更）
         const formData = new FormData();
-        formData.append('audio', audioBlob, 'recording.mp3');
+        formData.append('audio', audioBlob, 'recording.webm');
 
         try {
           const response = await fetch('/api/upload-audio', {
