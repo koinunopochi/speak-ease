@@ -5,6 +5,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { transcribeAudio } from '@/app/infrastructure/speech-to-text/open-ai/transcribe';
 import { getChatResponse } from '@/app/infrastructure/chat/open-ai/chat';
+import { textToSpeech } from '@/app/infrastructure/text-to-speech/textToSpeech';
 
 // (Edge runtimeを使用している場合は)
 // export const config = { runtime: 'nodejs' };
@@ -109,6 +110,30 @@ export async function POST(request) {
     const chat_model = 'gpt-4o-mini';
     const chatResponse = await getChatResponse(messages, chat_model);
     console.log('chatResponse', chatResponse);
+
+    // aiレスポンスを音声化する
+    const audioBuffer = await textToSpeech({
+      text:chatResponse,
+      model: 'tts-1',
+      voice: 'alloy',
+      responseFormat: 'opus',
+    });
+
+    // ▼▼▼ デバッグ用に処理済みファイルをサーバーに保存する ▼▼▼
+    try {
+      // 保存先を指定（例として Next.js プロジェクトの public/debug ディレクトリ）
+      const aiOutputFilePath = path.join(
+        process.cwd(),
+        'public',
+        'debug',
+        'ai-response.ogg'
+      );
+      await fs.writeFile(aiOutputFilePath, audioBuffer);
+      console.log('Processed file saved successfully at:', aiOutputFilePath);
+    } catch (saveError) {
+      console.error('Error saving processed file:', saveError);
+    }
+    // ▲▲▲ デバッグ用に処理済みファイルをサーバーに保存する ▲▲▲
 
     // クライアントにテキストを返す
     return new NextResponse(JSON.stringify({ text }), {
