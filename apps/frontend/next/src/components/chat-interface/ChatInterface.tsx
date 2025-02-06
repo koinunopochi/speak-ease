@@ -96,7 +96,7 @@ const ChatInterface: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          filename: uploadResult.filename,
+          objectName: uploadResult.objectName,
           model: selectedModels.speechToText,
         }),
       });
@@ -170,6 +170,7 @@ const ChatInterface: React.FC = () => {
 
       // 音声合成処理
       setProcessingStep('synthesize');
+      // TTS API を呼び出して音声データを生成する
       const ttsResponse = await fetch('/api/text-to-speech', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -183,7 +184,6 @@ const ChatInterface: React.FC = () => {
         throw new Error(ttsResult.error || '音声合成に失敗しました');
       }
 
-      // 音声再生
       const audio = new Audio(ttsResult.audioUrl);
       await audio.play();
 
