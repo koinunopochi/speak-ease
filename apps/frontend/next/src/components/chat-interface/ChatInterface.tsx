@@ -96,7 +96,7 @@ const ChatInterface: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          filename: uploadResult.filename,
+          objectName: uploadResult.objectName,
           model: selectedModels.speechToText,
         }),
       });
