@@ -1,4 +1,4 @@
-version: '3'
+version: '3.8'
 services:
   backend:
     build:
@@ -8,6 +8,9 @@ services:
       - "5000:5000"
     depends_on:
       - mongo
+      - minio
+    networks:
+      - bridge
 
   mongo:
     image: mongo:latest
@@ -15,6 +18,50 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    networks:
+      - bridge
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: server /data --console-address ":9001"
+    # ヘルスチェックの設定 (例)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc
+    depends_on:
+      # minio が "healthy" になるまで minio-init の起動を待機
+      minio:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command: >
+      -c "
+      mc config host add local http://minio:9000 minio minio123 &&
+      if mc ls local/speak-ease; then
+        echo 'Bucket speak-ease already exists.'
+      else
+        echo 'Bucket speak-ease not found. Creating...'
+        mc mb local/speak-ease
+      fi
+      "
+
 
 volumes:
   mongo-data:
+  minio-data:
+
+networks:
+  bridge:
+    driver: bridge
