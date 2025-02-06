@@ -11,7 +11,7 @@ const openai = new OpenAI({
  *
  * @param {Array} messages - OpenAI のチャット形式のメッセージ配列（例: [{ role: "system", content: "..." }, ...]）
  * @param {string} model - 使用するモデル名（例: "gpt-4o-mini"）
- * @returns {Promise<string>} - チャットのレスポンステキスト
+ * @returns {Promise<OpenAI.Chat.Completions.ChatCompletion>} - チャットのレスポンステキスト
  */
 export async function getChatResponse(messages, model) {
   try {
@@ -19,8 +19,9 @@ export async function getChatResponse(messages, model) {
       messages, // 外部から渡されたメッセージ配列
       model, // 外部から渡されたモデル名
     });
+    // console.dir(completion);
 
-    return completion.choices[0].message.content;
+    return completion;
   } catch (error) {
     console.error('Error generating chat response:', error);
     throw error;
